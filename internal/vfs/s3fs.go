@@ -97,7 +97,7 @@ func NewS3Fs(connectionID, localTempDir, mountPath string, s3Config S3FsConfig) 
 		localTempDir: localTempDir,
 		mountPath:    getMountPath(mountPath),
 		config:       &s3Config,
-		ctxTimeout:   30 * time.Second,
+		ctxTimeout:   300 * time.Second,
 	}
 	if err := fs.config.validate(); err != nil {
 		return fs, err
