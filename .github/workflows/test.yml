@@ -1,0 +1,52 @@
+name: test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  GO_VERSION: 1.26.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Get versions
+        id: get_version
+        run: |
+          echo "SFTPGO_VERSION=2.7.1" >> $GITHUB_OUTPUT
+          echo "GO_VERSION=${GO_VERSION}" >> $GITHUB_OUTPUT
+          echo "COMMIT=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        shell: bash
+        env:
+          GO_VERSION: ${{ env.GO_VERSION }}
+
+      - name: Build on amd64
+        run: |
+          echo '#!/bin/bash' > build.sh
+          echo '' >> build.sh
+          echo 'set -e' >> build.sh
+          echo 'apt-get update -q -y' >> build.sh
+          echo 'apt-get install -q -y curl gcc' >> build.sh
+          echo 'curl --retry 5 --retry-delay 2 --connect-timeout 10 -o go.tar.gz -L https://go.dev/dl/go${{ steps.get_version.outputs.GO_VERSION }}.linux-${{ matrix.go-arch }}.tar.gz' >> build.sh
+          echo 'tar -C /usr/local -xzf go.tar.gz' >> build.sh
+          echo 'export PATH=$PATH:/usr/local/go/bin' >> build.sh
+          echo 'go version' >> build.sh
+          echo 'go build -buildvcs=false -trimpath -tags nopgxregisterdefaulttypes,disable_grpc_modules -ldflags "-s -w -X github.com/drakkan/sftpgo/v2/internal/version.commit=${{ steps.get_version.outputs.COMMIT }} -X github.com/drakkan/sftpgo/v2/internal/version.date=`date -u +%FT%TZ`" -o sftpgo' >> build.sh
+
+          chmod 755 build.sh
+          ./build.sh
+          find . -type f -name sftpgo
+
+      - name: Upload Linux bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: sftpgo
+          path: sftpgo
+          retention-days: 1
